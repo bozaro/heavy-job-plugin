@@ -21,19 +21,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package hudson.plugins.heavy_job;
+package org.jenkinsci.plugins.heavy_job;
 
 import hudson.Extension;
-import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
-import hudson.model.Executor;
-import hudson.model.JobProperty;
-import hudson.model.JobPropertyDescriptor;
+import hudson.init.InitMilestone;
+import hudson.init.Initializer;
+import hudson.model.*;
 import hudson.model.Queue.Executable;
 import hudson.model.Queue.Task;
 import hudson.model.queue.AbstractSubTask;
 import hudson.model.queue.SubTask;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.export.ExportedBean;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,8 +44,9 @@ import java.util.List;
  *
  * @author Kohsuke Kawaguchi
  */
-public class HeavyJobProperty extends JobProperty<AbstractProject<?,?>> {
-    public final int weight;
+@ExportedBean
+public class HeavyJobProperty extends JobProperty<AbstractProject<?, ?>> {
+    public int weight;
 
     @DataBoundConstructor
     public HeavyJobProperty(int weight) {
@@ -55,7 +56,7 @@ public class HeavyJobProperty extends JobProperty<AbstractProject<?,?>> {
     @Override
     public List<SubTask> getSubTasks() {
         List<SubTask> r = new ArrayList<SubTask>();
-        for (int i=1; i< weight; i++)
+        for (int i = 1; i < weight; i++)
             r.add(new AbstractSubTask() {
                 public Executable createExecutable() throws IOException {
                     return new ExecutableImpl(this);
@@ -88,7 +89,13 @@ public class HeavyJobProperty extends JobProperty<AbstractProject<?,?>> {
     }
 
     @Extension
+    @Symbol("jobWeight")
     public static class DescriptorImpl extends JobPropertyDescriptor {
+        @Initializer(before = InitMilestone.PLUGINS_STARTED)
+        public static void addAliases() {
+            Items.XSTREAM2.addCompatibilityAlias("hudson.plugins.heavy_job.HeavyJobProperty", HeavyJobProperty.class);
+        }
+
         @Override
         public String getDisplayName() {
             return Messages.HeavyJobProperty_DisplayName();
@@ -107,15 +114,16 @@ public class HeavyJobProperty extends JobProperty<AbstractProject<?,?>> {
             return parent;
         }
 
-        public AbstractBuild<?,?> getBuild() {
-            return (AbstractBuild<?,?>)executor.getCurrentWorkUnit().context.getPrimaryWorkUnit().getExecutable();
+        public AbstractBuild<?, ?> getBuild() {
+            return (AbstractBuild<?, ?>) executor.getCurrentWorkUnit().context.getPrimaryWorkUnit().getExecutable();
         }
 
         public void run() {
             // nothing. we just waste time
         }
 
-        @Override public long getEstimatedDuration() {
+        @Override
+        public long getEstimatedDuration() {
             return parent.getEstimatedDuration();
         }
 
